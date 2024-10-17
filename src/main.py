@@ -2,11 +2,11 @@
 
 # Imports
 
-from PIL import Image
+from PIL import Image           # TODO: check if I can remove it
 import time
 import requests
-import telepot
-from telepot.loop import MessageLoop
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import yaml
 from pathlib import Path
 
@@ -36,13 +36,8 @@ CREDENTIALS = set_config()
 API_KEY = CREDENTIALS["api_key"]
 BOT_TOKEN = CREDENTIALS["bot_token"]
 
+BOT_USERNAME = "@spaciocat_bot"
 
-
-# Global variables
-
-bot = telepot.Bot(BOT_TOKEN)
-
-headers = { 'x-api-key' : API_KEY }
 
 
 # Methods
@@ -68,28 +63,55 @@ def get_search(headers, size="med", mime_types="jpg", limit=1):
     r = requests.get(URL, headers=headers)
     data = r.json()
     return data
+    # data = get_search(headers)
+    # image_url = data[0]["url"]
+
+# Commands
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Welcome! Get free cats here.\n/help for more info")
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(f"{"\n".join(commands)}")
 
 
-def handle(message):
-    content_type, chat_type, chat_id = telepot.glance(message)
-    print(content_type, chat_type, chat_id)
 
-    data = get_search(headers)
-    image_url = data[0]["url"]
+# Responses
 
-    if content_type == "text":
-        bot.sendPhoto(chat_id, image_url)
+def handle_response(text: str) -> str:
+    if text in commands:
+        return "test"
+    return "Not a valid command"
 
 
-# def get_image(url):
-#     image = Image.open(requests.get(url, stream=True).raw)
-#     return image
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_type: str = update.message.chat.type
+    text: str = update.message.text
+
+    print(f"User ({update.message.chat.id}) in {chat_type}: '{text}'")
+
+    if chat_type == "group":
+        if BOT_USERNAME in text.split():
+            new_text: str = text.replace(BOT_USERNAME, "").strip()
+            response: str = handle_response(new_text)   # TODO: correct the response to choose the correct command
+        else:
+            return
+    else:
+        response: str = handle_response(text)
+
+    print(f"Bot: {response}")
+
+    await update.message.reply_text(response)
+
+
+async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"Update {update} caused error {context.error}")
+
 
 
 def main():
 
     # get_image(image_url)
-    MessageLoop(bot, handle).run_as_thread()
     print("Listening...")
 
     while 1:
@@ -97,5 +119,23 @@ def main():
 
 
 if __name__ == "__main__":
-    print("Starting")
-    main()
+    print("Starting bot...")
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    bot = app.bot
+    commands = bot.get_my_commands()
+
+    headers = { 'x-api-key' : API_KEY }
+    
+    # Commands
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("help", help_command))
+    # app.add_handler(CommandHandler("spacio", spacio_command))
+
+    # Messages
+    app.add_handler(MessageHandler(filters.TEXT, handle_message))
+
+    # Errors
+    app.add_error_handler(error)
+
+    print("Polling...")
+    app.run_polling(poll_interval=1)
