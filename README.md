@@ -1,2 +1,2 @@
-# InstaReels-bot
-This project is a supposed to be a fun way to prank my friends by sending them (random) Instagram reels with a Telegram bot.
+# Spacio-bot
+In this project I create a Telegram bot to send cat pictures from TheCatAPI.
