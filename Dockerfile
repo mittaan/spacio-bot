@@ -1,6 +1,8 @@
-FROM python:latest
+FROM python:3.12.7
 
-COPY src /
+WORKDIR /usr/app
+
+COPY . .
 
 RUN pip install -r requirements.txt
 
