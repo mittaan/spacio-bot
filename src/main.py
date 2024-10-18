@@ -9,6 +9,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import yaml
 from pathlib import Path
+import asyncio
 
 
 # Global constants and config method
@@ -38,6 +39,10 @@ BOT_TOKEN = CREDENTIALS["bot_token"]
 
 BOT_USERNAME = "@spaciocat_bot"
 
+BOT_COMMANDS = [('/start', 'Starts a conversation with the bot.'),
+                ('/help', 'Gives information on how to use the bot.'),
+                ('/spacio', 'Get a random cat picture.')]
+
 
 
 # Methods
@@ -63,8 +68,12 @@ def get_search(headers, size="med", mime_types="jpg", limit=1):
     r = requests.get(URL, headers=headers)
     data = r.json()
     return data
-    # data = get_search(headers)
-    # image_url = data[0]["url"]
+
+def get_image_url():
+    data = get_search(headers)
+    image_url: str = data[0]["url"]
+    return image_url
+
 
 # Commands
 
@@ -72,8 +81,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Welcome! Get free cats here.\n/help for more info")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"{"\n".join(commands)}")
+    commands_explained = [f"{command} {description}" for command, description in zip(commands, command_descriptions)]
+    await update.message.reply_text(f"{"\n".join(commands_explained)}")
 
+async def spacio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    image_url = get_image_url()
+    await update.message.reply_photo(image_url)
+
+# TODO: add end_command to close the bot
 
 
 # Responses
@@ -109,27 +124,19 @@ async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-def main():
-
-    # get_image(image_url)
-    print("Listening...")
-
-    while 1:
-        time.sleep(10)
-
-
 if __name__ == "__main__":
     print("Starting bot...")
+    
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     bot = app.bot
-    commands = bot.get_my_commands()
+    commands, command_descriptions = zip(*BOT_COMMANDS)
 
     headers = { 'x-api-key' : API_KEY }
     
     # Commands
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
-    # app.add_handler(CommandHandler("spacio", spacio_command))
+    app.add_handler(CommandHandler("spacio", spacio_command))
 
     # Messages
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
