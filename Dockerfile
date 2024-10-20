@@ -1,9 +1,13 @@
-FROM python:3.12.7
+FROM python:3.12-alpine
 
-WORKDIR /usr/app
+WORKDIR /usr
 
-COPY . .
+COPY requirements.txt .
 
 RUN pip install -r requirements.txt
 
-CMD ["python", "./src/main.py"]
+COPY . .
+
+WORKDIR /usr/src
+
+CMD ["python", "main.py"]
