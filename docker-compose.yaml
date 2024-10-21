@@ -1,0 +1,10 @@
+name: spacio-bot
+
+services:
+  spacio-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      API_KEY: ${API_KEY}
+      BOT_TOKEN: ${BOT_TOKEN}

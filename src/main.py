@@ -2,40 +2,23 @@
 
 # Imports
 
-from PIL import Image           # TODO: check if I can remove it
-import time
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-import yaml
-from pathlib import Path
-import asyncio
+import os
+from dotenv import load_dotenv
 
 
 # Global constants and config method
+
+load_dotenv()
 
 TEMPLATE_URL = "https://api.thecatapi.com/v1/images/search"
 
 TEMPLATE_QUERY_URL = "?size={size}&mime_types={mime_types}&limit={limit}"
 
-def set_config():
-    """
-    Extracts the secrets stored in the config.yml file and returns it as a dictionary.
-
-    To see how to structure the 'config.yml' file, please refer to the 'config.yml.example' file.
-    """
-
-    path = Path("../config/config.yml")
-    with open(path, "r") as config_file:
-        config = yaml.safe_load(config_file)
-
-    credentials = config["credentials"]
-    return credentials
-
-CREDENTIALS = set_config()
-
-API_KEY = CREDENTIALS["api_key"]
-BOT_TOKEN = CREDENTIALS["bot_token"]
+API_KEY = os.getenv("API_KEY")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 BOT_USERNAME = "@spaciocat_bot"
 
@@ -79,18 +62,30 @@ def get_image_url():
 # Commands
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_type: str = update.message.chat.type
+    text: str = update.message.text
+    print(f"User in {chat_type}: {text}")
     await update.message.reply_text("Welcome! Get free cats here.\n/help for more info")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_type: str = update.message.chat.type
+    text: str = update.message.text
+    print(f"User in {chat_type}: {text}")
     commands_explained = [f"{command} {description}" for command, description in zip(commands, command_descriptions)]
     await update.message.reply_text(f"{"\n".join(commands_explained)}")
 
 async def spacio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_type: str = update.message.chat.type
+    text: str = update.message.text
+    print(f"User in {chat_type}: {text}")
     image_url = get_image_url()
     await update.message.reply_photo(image_url)
 
 # TODO: fix end_command to pause the bot
 async def end_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_type: str = update.message.chat.type
+    text: str = update.message.text
+    print(f"User in {chat_type}: {text}")
     await update.message.reply_text("Bot paused.\n/start to resume the conversation.")
 
 
@@ -100,8 +95,8 @@ def handle_response(text: str) -> str:
     if text in commands:
         return f"Executing command {text}"
     elif text == BOT_USERNAME:
-        return "Hello! Need a cat? Try /spacio"
-    return "Not a valid command, please seek /help"
+        return "Hello! Need a cat?\nTry /spacio"
+    return "Not a valid command,\nplease seek /help"
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -140,7 +135,7 @@ if __name__ == "__main__":
     bot = app.bot
     commands, command_descriptions = zip(*BOT_COMMANDS)
     commands_with_bot_name = [command + BOT_USERNAME for command in commands]
-    valid_commands = commands + commands_with_bot_name
+    valid_commands = list(commands) + commands_with_bot_name
 
     headers = { 'x-api-key' : API_KEY }
     
