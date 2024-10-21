@@ -3,9 +3,17 @@
 # Imports
 
 import requests
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes,
+    CallbackQueryHandler
+)
 import os
+import logging
 from dotenv import load_dotenv
 
 
@@ -62,31 +70,21 @@ def get_image_url():
 # Commands
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_type: str = update.message.chat.type
-    text: str = update.message.text
-    print(f"User in {chat_type}: {text}")
-    await update.message.reply_text("Welcome! Get free cats here.\n/help for more info")
+    # print(f"User in {update.message.chat.type}: {update.message.text}")
+    keyboard = [[InlineKeyboardButton("Get started", callback_data="/help")]]
+
+    await update.message.reply_text("Welcome! Get free cats here.\n/help for more info",
+                                    reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_type: str = update.message.chat.type
-    text: str = update.message.text
-    print(f"User in {chat_type}: {text}")
+    # print(f"User in {update.message.chat.type}: {update.message.text}")
     commands_explained = [f"{command} {description}" for command, description in zip(commands, command_descriptions)]
     await update.message.reply_text(f"{"\n".join(commands_explained)}")
 
 async def spacio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_type: str = update.message.chat.type
-    text: str = update.message.text
-    print(f"User in {chat_type}: {text}")
+    # print(f"User in {update.message.chat.type}: {update.message.text}")
     image_url = get_image_url()
     await update.message.reply_photo(image_url)
-
-# TODO: fix end_command to pause the bot
-async def end_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_type: str = update.message.chat.type
-    text: str = update.message.text
-    print(f"User in {chat_type}: {text}")
-    await update.message.reply_text("Bot paused.\n/start to resume the conversation.")
 
 
 # Responses
@@ -104,7 +102,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text: str = update.message.text
     command = [word for word in text.split() if word in valid_commands]
 
-    print(f"User in {chat_type}: {command}")
+    if command != []:
+        print(f"User in {chat_type}: {command}")
+
+    keyboard = []
 
     if "group" in chat_type:
         if BOT_USERNAME in text.split():
@@ -113,14 +114,38 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 response: str = handle_response(new_text)
             else:
                 response: str = handle_response(BOT_USERNAME)
+                keyboard.append([InlineKeyboardButton("Free kitty", callback_data="/spacio")])
+                
         else:
             return
     else:
-        response: str = handle_response(text)
+        if BOT_USERNAME in text.split():
+            new_text: str = text.replace(BOT_USERNAME, "").strip()
+            if new_text != "":
+                response: str = handle_response(new_text)
+            else:
+                response: str = handle_response(BOT_USERNAME)
+                keyboard.append([InlineKeyboardButton("Free kitty", callback_data="/spacio")])
+                
+        else:
+            response: str = handle_response(text)
 
     print(f"Bot: {response}")
 
-    await update.message.reply_text(response)
+    reply_markup = InlineKeyboardMarkup(keyboard) if keyboard != [] else None
+
+    await update.message.reply_text(response, reply_markup=reply_markup)
+
+
+async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    callback = update.callback_query
+    callback_data = update.callback_query.data
+
+    match callback_data:
+        case "/help":
+            await help_command(callback, context)
+        case "/spacio":
+            await spacio_command(callback, context)
 
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -143,7 +168,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("spacio", spacio_command))
-    app.add_handler(CommandHandler("end", end_command))
+    app.add_handler(CallbackQueryHandler(handle_callback_query))
 
     # Messages
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
