@@ -13,8 +13,12 @@ from telegram.ext import (
     CallbackQueryHandler
 )
 import os
-import logging
 from dotenv import load_dotenv
+import json
+from pathlib import Path
+import logging.config
+import logging.handlers
+import atexit
 
 
 # Global constants and config method
@@ -35,6 +39,21 @@ BOT_COMMANDS = [('/start', 'Starts a conversation with the bot.'),
                 ('/spacio', 'Get a random cat picture.'),
                 ('/end', 'Ends the conversation with the bot.')]
 
+
+# Logging
+
+logger = logging.getLogger(__name__)
+
+def setup_logging():
+    config_file = Path("logging_config", "config.json")
+    with open(config_file) as config_setup:
+        config = json.load(config_setup)
+
+    logging.config.dictConfig(config)
+    queue_handler = logging.getHandlerByName("queue_handler")
+    if queue_handler is not None:
+        queue_handler.listener.start()
+        atexit.register(queue_handler.listener.stop)
 
 
 # Methods
@@ -70,19 +89,22 @@ def get_image_url():
 # Commands
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # print(f"User in {update.message.chat.type}: {update.message.text}")
+    message = update.message if update.message is not None else update.edited_message
+    logger.info(f"User {message.from_user.id} in {message.chat.type}: {message.text}")
     keyboard = [[InlineKeyboardButton("Get started", callback_data="/help")]]
 
     await update.message.reply_text("Welcome! Get free cats here.\n/help for more info",
                                     reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # print(f"User in {update.message.chat.type}: {update.message.text}")
+    message = update.message if update.message is not None else update.edited_message
+    logger.info(f"User {message.from_user.id} in {message.chat.type}: {message.text}")
     commands_explained = [f"{command} {description}" for command, description in zip(commands, command_descriptions)]
     await update.message.reply_text(f"{"\n".join(commands_explained)}")
 
 async def spacio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # print(f"User in {update.message.chat.type}: {update.message.text}")
+    message = update.message if update.message is not None else update.edited_message
+    logger.info(f"User {message.from_user.id} in {message.chat.type}: {message.text}")
     image_url = get_image_url()
     await update.message.reply_photo(image_url)
 
@@ -98,12 +120,15 @@ def handle_response(text: str) -> str:
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_type: str = update.message.chat.type
-    text: str = update.message.text
-    command = [word for word in text.split() if word in valid_commands]
+    message = update.message if update.message is not None else update.edited_message
+    chat_type: str = message.chat.type
+    text: str = message.text
+    command = [word for word in text.split() if word in valid_commands or BOT_USERNAME in word]
 
     if command != []:
-        print(f"User in {chat_type}: {command}")
+        logger.info(f"User {message.from_user.id} in {chat_type}: {command}")
+    else:
+        return
 
     keyboard = []
 
@@ -130,7 +155,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             response: str = handle_response(text)
 
-    print(f"Bot: {response}")
+    logger.info(f"Bot: {response}")
 
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard != [] else None
 
@@ -149,18 +174,23 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"Update {update} caused error {context.error}")
+    error_message = update.message if update.message is not None else update.edited_message
+    logger.error(f"Update {error_message} from {update.message.from_user.id} caused error {context.error}")
 
 
 
 if __name__ == "__main__":
-    print("Starting bot...")
+    setup_logging()
+    logging.basicConfig(level="INFO")
+
+    logger.info("Starting bot...")
     
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     bot = app.bot
     commands, command_descriptions = zip(*BOT_COMMANDS)
     commands_with_bot_name = [command + BOT_USERNAME for command in commands]
     valid_commands = list(commands) + commands_with_bot_name
+    valid_commands.append(BOT_USERNAME)
 
     headers = { 'x-api-key' : API_KEY }
     
@@ -176,5 +206,5 @@ if __name__ == "__main__":
     # Errors
     app.add_error_handler(error)
 
-    print("Polling...")
+    logger.info("Polling...")
     app.run_polling(poll_interval=1)

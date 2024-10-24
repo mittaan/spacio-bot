@@ -1,0 +1,57 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+        "simple": {
+            "format": "%(levelname)s: %(message)s",
+            "datefmt": "%Y-%m-%dT%H:%M:%S%z"
+        },
+        "json": {
+            "()": "logger.JSONFormatter",
+            "fmt_keys": {
+                "level": "levelname",
+                "message": "message",
+                "timestamp": "timestamp",
+                "logger": "name",
+                "module": "module",
+                "function": "funcName",
+                "line": "lineno",
+                "thread_name": "threadName"
+            }
+        }
+    },
+    "handlers": {
+        "file_warning": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "WARNING",
+            "formatter": "json",
+            "filename": "logs/spaciobot-WARNING.log.jsonl",
+            "maxBytes": 10000,
+            "backupCount": 3
+        },
+        "file_info": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "INFO",
+            "formatter": "json",
+            "filename": "logs/spaciobot-INFO.log.jsonl",
+            "maxBytes": 10000,
+            "backupCount": 5
+        },
+        "queue_handler": {
+            "class": "logging.handlers.QueueHandler",
+            "handlers": [
+                "file_warning",
+                "file_info"
+            ],
+            "respect_handler_level": true
+        }
+    },
+    "loggers": {
+      "root": {
+        "level": "INFO",
+        "handlers": [
+          "queue_handler"
+        ]
+      }
+    }
+}
