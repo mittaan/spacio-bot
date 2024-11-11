@@ -36,8 +36,7 @@ BOT_USERNAME = "@spaciocat_bot"
 
 BOT_COMMANDS = [('/start', 'Starts a conversation with the bot.'),
                 ('/help', 'Gives information on how to use the bot.'),
-                ('/spacio', 'Get a random cat picture.'),
-                ('/end', 'Ends the conversation with the bot.')]
+                ('/spacio', 'Get a random cat picture.')]
 
 
 # Logging
